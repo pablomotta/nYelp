@@ -6,7 +6,10 @@ var api = {
         }
     },
     edamam: {
-        add_id: '${e117c7cc}',
-        app_key: '${baf291ef0c14bbe490cec3f197aa53a2}'
+        add_id: '${22c65100}',
+        app_key: '${a21cc3c5ce596a8f40b6424a3f5c98f7¡}'
+    },
+    spoonacular: {
+        apiKey: 'e8ad9bcc1183429696bdbdc40990e184'
     }
 };
