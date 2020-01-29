@@ -17,9 +17,10 @@ An application where you can search for the nutritional value for foods and meal
 
 ## Installation
 
--   `git pull / git merge`
+-   `git clone git@github.com:pablomotta/nYelp.git`
+-   `cd nYelp`
 -   `npm install`
--   `npm start` or `gulp watch`
+-   `npm start`
 
 ## Author
 
