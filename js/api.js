@@ -1,20 +1,11 @@
-var edamamID = api.edamam.add_id;
-var edamamKEY = api.edamam.app_key;
 var spoonacularKEY = api.spoonacular.apiKey;
 
-var cors = 'https://pm-cors.herokuapp.com/'; // cors anywhere server to prevent 'Allow-Control-Allow-Origin' issue
-var restaurantsSet;
-var restaurants;
 var responseItems;
 var responseItemsSet;
-var yelpAuthorization = api.yelp.headers.Authorization;
 var cards;
-var ajaxct;
 var $loader = $(
     '<div class="lds-css ng-scope" style="width: 200px; height: 200px;"><div class="lds-spinner" style="width:100%;height:100%"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>'
 );
-
-var $locationError = $('#error'); //append this to html page in case of geoLocation error.set time so location disappears after 3 seconds
 
 // truncate strings for titles
 function truncateString(str, num) {
@@ -24,83 +15,47 @@ function truncateString(str, num) {
     return str.slice(0, num) + '...';
 }
 
-// get location and run yelp function
-function getLocationRunYelp() {
-    ajaxct = 0;
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(runYelp, showError);
-    } else {
-        $locationError.innerHTML = 'Geolocation is not supported by this browser.';
-    }
+// render a message in place of the spinner when a search cannot complete
+function showSearchError(message) {
+    $('.modal-body')
+        .empty()
+        .append(
+            $('<p>', {
+                class: 'text-center',
+                html: message
+            })
+        );
 }
-// fetch current location, pass it to yelp API call, run API call.
-function runYelp(position) {
+
+// look up recipes for the current search term
+function runSearch() {
+    ajaxct = 0;
     var searchInput = $('#searchInput').val();
-    var latitude = position.coords.latitude;
-    var longitude = position.coords.longitude;
-    // edamam ajax call
     var spoonacularURL =
-        cors +
         'https://api.spoonacular.com/recipes/complexSearch?number=10&query=' +
-        searchInput +
+        encodeURIComponent(searchInput) +
         '&apiKey=' +
         spoonacularKEY +
         '&addRecipeInformation=true';
+
     $.ajax({
         url: spoonacularURL,
-        headers: {
-            'Content-Type': 'application/json'
-        },
         method: 'GET'
-    }).then(function(response) {
-        ///////////////////////////////////////
-        /// Write edamam Logic here
-        console.log('from spoonacular: ' + response);
-        responseItems = response.results; // ARRAY
-        responseItemsSet = responseItems.slice(0, 5);
-        $(document).trigger('ajaxdone');
-        ////////////////////////////////////////
-        // loop through edamam recipes and extract data
-        ///////////////////////////////////////
-    });
-    // yelp ajax call
-    var yelpURL =
-        cors + 'https://api.yelp.com/v3/transactions/delivery/search?term=' + searchInput + '&latitude=' + latitude + '&longitude=' + longitude;
-    $.ajax({
-        url: yelpURL,
-        headers: {
-            Authorization: yelpAuthorization
-        },
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            console.log('success: ' + data);
-        }
-    }).then(function(response) {
-        // console.log(response);
-        restaurants = response.businesses;
-        restaurantsSet = restaurants.slice(0, 5);
-        $(document).trigger('ajaxdone');
-    });
+    })
+        .then(function(response) {
+            responseItems = response.results;
+            responseItemsSet = responseItems.slice(0, 5);
+            $(document).trigger('ajaxdone');
+        })
+        .fail(function(jqXHR) {
+            var message =
+                jqXHR.status === 401 || jqXHR.status === 402
+                    ? 'The recipe service rejected our API key. It may have expired or run out of quota.'
+                    : 'Could not reach the recipe service. Please try again later.';
+            showSearchError(message);
+        });
 }
 
-//handle errors in case geo location doesn't work.
-function showError(error) {
-    switch (error.code) {
-        case error.PERMISSION_DENIED:
-            $locationError.innerHTML = 'User denied the request for Geolocation.';
-            break;
-        case error.POSITION_UNAVAILABLE:
-            $locationError.innerHTML = 'Location information is unavailable.';
-            break;
-        case error.TIMEOUT:
-            $locationError.innerHTML = 'The request to get user location timed out.';
-            break;
-        case error.UNKNOWN_ERROR:
-            $locationError.innerHTML = 'An unknown error occurred.';
-            break;
-    }
-}
 
 function load() {
     responseItemsSet.forEach(item => {
@@ -177,80 +132,6 @@ function load() {
             .appendTo($edamamCards);
     });
 
-    restaurantsSet.forEach(item => {
-        var restaurantNameFull = item.name; // name of restaurant
-        var restaurantName = truncateString(restaurantNameFull, 18); // name of restaurant
-
-        var restaurantPhone = item.display_phone; // phone number
-        var restaurantPhoneLink = item.phone;
-        var restaurantImage = item.image_url; // image
-        var restaurantUrl = item.url; // url of each restaurant
-        var restaurantCategories = item.categories;
-
-        var restaurantCategoriesSet = restaurantCategories.slice(0, 2);
-        // Create yelp modal cards and append data
-        var $yelpCards = $('#yelp-cards');
-
-        $('<div>', {
-            class: 'card mb-5 yelp',
-            target: '_blank'
-        })
-            .append(
-                $('<div>', {
-                    class: 'row no-gutters'
-                }).append(
-                    $('<div>', {
-                        class: 'col-4 col-sm-4'
-                    }).append(
-                        $('<img>', {
-                            class: 'card-img',
-                            src: restaurantImage
-                        })
-                    ),
-                    $('<div>', {
-                        class: 'col-6 col-sm-4'
-                    }).append(
-                        $('<div>', {
-                            class: 'card-body'
-                        }).append(
-                            $('<h6>', {
-                                class: 'card-title',
-                                html: restaurantName
-                            }),
-                            $('<a>', {
-                                class: 'card-text',
-                                html: restaurantPhone,
-                                href: 'tel:' + restaurantPhoneLink
-                            }),
-                            $('<br>'),
-                            $('<br>'),
-                            $('<a>', {
-                                class: 'card-text text-uppercase',
-                                href: restaurantUrl,
-                                html: 'visit website',
-                                target: '_blank'
-                            })
-                        )
-                    ),
-                    $('<div>', {
-                        class: 'col-sm-4 hide'
-                    }).append(
-                        $('<div>', {
-                            class: 'card-body'
-                        }).append(
-                            $('<h6>', {
-                                class: 'card-title',
-                                html: 'Cuisine'
-                            }),
-                            $('<p>', {
-                                html: restaurantCategoriesSet[0].title
-                            })
-                        )
-                    )
-                )
-            )
-            .appendTo($yelpCards);
-    });
 }
 
 $('#searchInput').on('keypress', function(e) {
@@ -277,7 +158,6 @@ $('#searchButton').on('click', function(e) {
         console.log('dmsg: content format valid');
         // DOM: update model title
         $('.recipe-cards').empty();
-        $('#yelp-cards').empty();
         $cards = $($('.modal-body').html()).fadeOut();
         console.log('debug stage 2 - change status to loading trigger datachange');
         console.log($('.modal-body'));
@@ -288,7 +168,7 @@ $('#searchButton').on('click', function(e) {
         window.location.replace('#portfolioModal1');
         $('.modal-body').data('state', 'loading');
         $('.modal-body').trigger('statchange');
-        getLocationRunYelp();
+        runSearch();
     } else {
         // if input is not in valid format, prompt user a model alert stating the valid format
         $.alert({
@@ -309,14 +189,6 @@ $('#searchButton').on('click', function(e) {
 $('.modal-body').on('statchange', function(e) {
     console.log('debug - detected statchange');
 
-    // if ($(this).data("status") === "loading") {
-    //     $wrap.empty().append($loader);
-    //     console.log("run search");
-    //     getLocationRunYelp();
-    // } else if ($(this).data("status") === "loadded") {
-    //     $wrap.empty().append($(cards));
-    //     load();
-    // }
     switch ($(this).data('state')) {
         case 'loading':
             console.log('state = loading');
@@ -337,7 +209,7 @@ $('.modal-body').on('statchange', function(e) {
 
 $(document).on('ajaxdone', function() {
     ajaxct = ajaxct + 1;
-    if (ajaxct == 2) {
+    if (ajaxct == 1) {
         $('.modal-body').data('state', 'loaded');
         $('.modal-body').trigger('statchange');
     }
